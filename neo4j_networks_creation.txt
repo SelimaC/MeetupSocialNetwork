@@ -1,0 +1,79 @@
+# Load the Group network to Neo4j
+# Edges: 6896597 sonali - 13079090 berk
+# Nodes: 16331
+
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/groups_nodefile.csv' AS line
+CREATE (:Group { id: line[0], name: line[1], category: [2],members: toInteger(line[3]), city: line[4], date_created: line[5], rating: toFloat(line[6]) })
+
+CREATE CONSTRAINT ON (g:Group) ASSERT g.id IS UNIQUE
+
+# Clean up
+MATCH (n:Group { id: 'NodeId' }) DELETE n
+
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/group_nw_.csv' AS row
+MATCH (a:Group {id: row[2]})
+MATCH (b:Group {id: row[3]})
+MERGE (a)-[r:SHARE_MEMBERS {weight: row[4], list_memebers: row[5]}]->(b)
+
+###################################################################################################################################################################
+
+# Load the Venue network to Neo4j
+
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/venues_nodes.csv' AS line
+CREATE (:Venue { id: line[0], venueId:line[1], name: line[2], city: [3]})
+
+CREATE CONSTRAINT ON (v:Venue) ASSERT v.id IS UNIQUE
+
+# Clean up
+MATCH (n:Venue { id: 'NodeId' }) DELETE n
+
+USING PERIODIC COMMIT LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/venues_edges.csv' AS row
+MATCH (a:Venue {venueId: row[1]})
+MATCH (b:Venue {venueId: row[2]})
+MERGE (a)-[r:SHARE_GROUPS {shared_groups: toInteger(row[3]), shared_groups_list: row[4], common_topics: row[5]}]->(b)
+
+#################################################################################################################################################################
+
+#### Members network (Do it for each city) ###
+
+
+CREATE CONSTRAINT ON (m:Member) ASSERT m.id IS UNIQUE
+
+## to delete duplicates
+MATCH (b:Member)
+WITH b.id AS id, COLLECT(b) AS branches
+WHERE SIZE(branches) > 1
+FOREACH (n IN branches | DETACH DELETE n);
+
+# Chicago
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/chi_members_nodefile.csv' AS line
+CREATE (:Member { id: line[0], name:line[1], city: line[2], member_state: line[3], joining_date: line[4], organizer_status: line[5], organized_groups_list: line[6]})
+
+USING PERIODIC COMMIT LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/chi_members_edgefile.csv' AS row
+MATCH (a:Member {id: row[1]})
+MATCH (b:Member {id: row[2]})
+MERGE (a)-[r: MEMBERS_SHARE_GROUPS {weight: toInteger(row[4]), list_groups: row[3]}]->(b)
+
+# San Francisco
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/sf_members_nodefile.csv' AS line
+CREATE (:Member { id: line[0], name:line[1], city: line[2], member_state: line[3], joining_date: line[4], organizer_status: line[5], organized_groups_list: line[6]})
+
+USING PERIODIC COMMIT LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/sf_members_edgefile.csv' AS row
+MATCH (a:Member {id: row[1]})
+MATCH (b:Member {id: row[2]})
+MERGE (a)-[r: MEMBERS_SHARE_GROUPS {weight: toInteger(row[4]), list_groups: row[3]}]->(b)
+
+# New York
+USING PERIODIC COMMIT
+LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/ny_members_nodefile.csv' AS line
+CREATE (:Member { id: line[0], name:line[1], city: line[2], member_state: line[3], joining_date: line[4], organizer_status: line[5], organized_groups_list: line[6]})
+
+USING PERIODIC COMMIT LOAD CSV FROM 'https://s3.eu-central-1.amazonaws.com/meetupsocialnetwork/ny_members_edgefile.csv' AS row
+MATCH (a:Member {id: row[1]})
+MATCH (b:Member {id: row[2]})
+MERGE (a)-[r: MEMBERS_SHARE_GROUPS {weight: toInteger(row[4]), list_groups: row[3]}]->(b)
